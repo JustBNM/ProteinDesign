@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import math
 
 
-def generate_dots(number_of_dots, side_lenght):
+def generate_dots(number_of_dots, side_length):
     '''Generate dots of the polygon
 
     Для генерации точек используется псевдолинейное распределение
@@ -17,7 +17,7 @@ def generate_dots(number_of_dots, side_lenght):
 
         dot_angle = np.random.uniform(angle_1, angle_2, 1)
 
-        boundary = min(side_lenght, abs(side_lenght / math.tan(math.radians(dot_angle))))
+        boundary = min(side_length, abs(side_length / math.tan(math.radians(dot_angle))))
 
         dot_x = (np.random.uniform(0, boundary, 1)[0] * np.sign(math.sin(math.radians(dot_angle)))
                  * np.sign(math.tan(math.radians(dot_angle))))
@@ -25,7 +25,7 @@ def generate_dots(number_of_dots, side_lenght):
         dot_y = (dot_x * (math.tan(math.radians(dot_angle)))
                  * np.sign(math.sin(math.radians(dot_angle))) / np.sign(math.sin(math.radians(dot_angle))))
 
-        check_value = np.random.random(1)[0] * 1.8
+        check_value = np.random.random(1)[0] * side_length * 1.8
 
         while check_value > dot_x ** 2 + dot_y ** 2:
             dot_x = (np.random.uniform(0, boundary, 1)[0] * np.sign(math.sin(math.radians(dot_angle)))
@@ -33,7 +33,7 @@ def generate_dots(number_of_dots, side_lenght):
             dot_y = (dot_x * (math.tan(math.radians(dot_angle)))
                      * np.sign(math.sin(math.radians(dot_angle))) / np.sign(math.sin(math.radians(dot_angle))))
 
-            check_value = np.random.random(1)[0] * 1.8
+            check_value = np.random.random(1)[0] * side_length * 1.8
 
         all_x.append(dot_x)
         all_y.append(dot_y)
@@ -49,41 +49,112 @@ def drawPolygon():
 
     xs, ys = zip(*coord)  # create lists of x and y values
 
-    plt.fill(xs, ys, alpha=0.3)
+    plt.scatter(xs, ys)
+    # plt.fill(xs,ys, alpha=0.3)
 
 
 def splitPolygon():
-    #     for i in range (len(all_angles)):
-    #         if all_angles[i]>=180:
-    #             print ('выпуклый угол:', i)
+    '''
+    Разбивает многоугольник на несколько меньших исходя из угла между точками i-1, i, i+1
+
+
+    Разбиение происходит если угол > 180
+    Функция взята из предыдущей рабочей ячейки'''
 
     coord = [(all_x[i], all_y[i]) for i in range(len(all_x))]
 
+    coord_copy = coord.copy()
+
     mydict = {i: coord[i] for i in range(len(coord))}
 
-    coord.append(coord[0])  # repeat the first point to create a 'closed loop'
-    #    coord.append(coord[1])
     divisible_polygons = []
     polygons_angles = []
+    i = 0
+    while i < len(coord) - 1:
 
-    divisible_polygons.append(coord)
+        separate_polygon = []
+        first_dot = coord[i]
+        second_dot = coord[i + 1]
+        if i + 2 < len(coord):
+            third_dot = coord[(i + 2)]
+            third_dot_index = i + 2
+        else:
+            third_dot = coord[(i + 2) - len(coord)]
+            third_dot_index = (i + 2) - len(coord)
 
-    zip_angles = []
-    for i in range(len(coord)):
-        zip_angles.append(list(mydict.keys())[list(mydict.values()).index(coord[i])])
-    polygons_angles.append(zip_angles)
+        first_dot_index = i
+        second_dot_index = i + 1
 
+        while (angle_finder(first_dot, second_dot, third_dot) >= 180) and i < len(coord):
+            #             print('angle', first_dot_index, second_dot_index, third_dot_index,
+            #                   angle_finder(first_dot, second_dot, third_dot))
+            #             print('i',i)
+            separate_polygon.append(third_dot)
+
+            del coord_copy[coord_copy.index(third_dot)]
+
+            i += 1
+
+            if i + 2 < len(coord):
+                third_dot_index = i + 2
+                third_dot = coord[(i + 2)]
+            else:
+                third_dot = coord[(i + 2) - len(coord)]
+                third_dot_index = (i + 2) - len(coord)
+
+        #         print('angle', first_dot_index, second_dot_index, third_dot_index,
+        #                   angle_finder(first_dot, second_dot, third_dot))
+
+        '''
+        добавляем граничные точки:
+        '''
+        if separate_polygon != []:
+            separate_polygon.append(third_dot)
+            separate_polygon.insert(0, second_dot)
+            # Добавляем лишнюю точку для замыкания
+            separate_polygon.append(second_dot)
+
+            divisible_polygons.append(separate_polygon)
+        i += 1
+
+    if len(coord_copy) > 1:
+        divisible_polygons.append(coord_copy)
+        divisible_polygons[-1].append(coord_copy[0])
+
+    for i in range(len(divisible_polygons)):
+        zip_angles = []
+        for j in range(len(divisible_polygons[i])):
+            zip_angles.append(list(mydict.keys())[list(mydict.values()).index(divisible_polygons[i][j])])
+        polygons_angles.append(zip_angles)
+
+    print('divisible_angles:', polygons_angles)
     return divisible_polygons
 
 
 def drawTriangle(divisible_polygons):
     """
-    Рисование треугольника
+    Рисование треугольников по точкам переданного многоугольника и центру их масс.
+
+    Каждый треугольник состоит из 2 точек многоугольника и точки центра масс
     """
     all_triangles = []
+    mass_centeres = []
+
+    # Подсчет центра масс:
+    for i in range(len(divisible_polygons)):
+        center_x = 0
+        center_y = 0
+        for j in range(len(divisible_polygons[i]) - 1):
+            center_x += divisible_polygons[i][j][0]
+            center_y += divisible_polygons[i][j][1]
+        center = [center_x / (j + 1), center_y / (j + 1)]
+        mass_centeres.append(center)
+    mass_centeres = np.array(mass_centeres)
+    plt.scatter(x=mass_centeres[:, 0], y=mass_centeres[:, 1], marker='o', color='black', edgecolor='b', s=120, alpha=1)
+
     for i in range(len(divisible_polygons)):
         for j in range(len(divisible_polygons[i]) - 1):
-            coord = ([divisible_polygons[i][j], (0, 0), divisible_polygons[i][j + 1]])
+            coord = ([divisible_polygons[i][j], tuple(mass_centeres[i]), divisible_polygons[i][j + 1]])
             coord_copy = coord.copy()
             all_triangles.append(coord_copy)
 
@@ -108,8 +179,6 @@ def genBasis():
             xs, ys = zip(*coord)  # create lists of x and y values
             # plt.plot (xs,ys, color='black', alpha = 1)
 
-    # print(basis)
-    # print(all_angles)
     return basis, basis_angles
 
 
@@ -254,7 +323,7 @@ def triangle_area(triangle):
                          (triangle[0][1] - triangle[2][1]) ** 2)
     p = (len_side_1 + len_side_2 + len_side_3) / 2
     area = np.sqrt(p * (p - len_side_1) * (p - len_side_2) * (p - len_side_3))
-    #     print(p, len_side_1, len_side_2, len_side_3)
+
     if np.isnan(area) == False:
         return area
     else:
@@ -305,6 +374,10 @@ def fillTriangle(triangle):
 
     angles = [angle_0, angle_1, angle_2]
 
+    for i in range(len(angles)):
+        if angles[i] >= 180:
+            angles[i] = 0
+
     possible_fill_coords = []
     possible_fill_areas = []
 
@@ -318,7 +391,7 @@ def fillTriangle(triangle):
                              + (triangle[0][1] - triangle[2][1]) ** 2)
 
         for k in range(len(basis_angles) - 1):
-            if basis_angles[k] < angles[index] < basis_angles[k + 1]:
+            if basis_angles[k] <= angles[index] < basis_angles[k + 1]:
                 fill_angle = basis_angles[k]
 
         for j in range(19):
@@ -353,7 +426,6 @@ def fillTriangle(triangle):
                       triangle[index],
                       tuple(np.array(R) * (fill_side_2 / len_R) +
                             np.array(triangle[index]) * (1 - (fill_side_2 / len_R)))]
-        #             fill_coord = [all_triangles[i][0], all_triangles[i][1], all_triangles[i][2]]
         possible_fill_coords.append(fill_coord)
         #         print('fill_coord', fill_coord)
         #         print('triangle_area', triangle_area(fill_coord))
@@ -387,25 +459,15 @@ def fillPolygon(all_triangles):
         variants_of_division = []
         all_areas = []
 
-        #         print('all_triangles[i]', all_triangles[i])
-
         for partition_number in range(1, 4):
             filled_area = 0
             divided_triangles = MultipleOperator([all_triangles[i]], partition_number)
 
-            #             print('divided_trianlges', divided_triangles)
             variants_of_division.append(divided_triangles)
 
             for triangle in divided_triangles:
-                # print('triangle:', triangle)
-                # print(triangle)
-
                 filled_area += triangle_area(fillTriangle(triangle))
-            #                 print('filled_area', filled_area)
             all_areas.append(filled_area)
-
-        #         print(all_areas)
-        #         print(variants_of_division)
 
         best_fill_variant = variants_of_division[all_areas.index(np.max(all_areas))]
 
@@ -477,12 +539,13 @@ def angle_finder(coord_1, coord_2, coord_3):
 def all_angles_finder(coords):
     '''Нахождение набора углов многоугольника
     '''
+    local_coords = coords.copy()
     all_angles = []
-    coords.insert(0, coords[-1])
-    coords.append(coords[1])
-    for i in range(1, len(coords) - 1):
-        angle = angle_finder(coords[i - 1], coords[i], coords[i + 1])
-        # print(i-1, angle)
+    local_coords.insert(0, local_coords[-1])
+    local_coords.append(local_coords[1])
+    for i in range(1, len(local_coords) - 1):
+        angle = angle_finder(local_coords[i - 1], local_coords[i], local_coords[i + 1])
+
         all_angles.append(angle)
 
     return all_angles
@@ -490,20 +553,33 @@ def all_angles_finder(coords):
 
 if __name__ == "__main__":
 
-    number_of_dots = 14  # random.randint(3, 10)
-    # random.seed(921)
-    # np.random.seed(921)
+    number_of_dots = 15  # random.randint(3, 10)
+    # random.seed(9221)
+    np.random.seed(2)
 
-    all_x, all_y = generate_dots(number_of_dots, 2)
+    all_x, all_y = generate_dots(number_of_dots, 2.0)
 
     coords = [(all_x[i], all_y[i]) for i in range(len(all_x))]
 
     all_angles = all_angles_finder(coords)
 
+    plt.scatter(x=all_x, y=all_y, marker='o', c='r', edgecolor='b')
+    ''' аннотация точек'''
+    for i in range(len(all_x)):
+        plt.annotate(i, (all_x[i], all_y[i]))
+
     drawPolygon()
+    '''
+    Вставить разбиение полигона на несколько меньших полигонов
+    '''
+    # print(coords)
     divisible_polygons = splitPolygon()
 
     all_triangles = drawTriangle(divisible_polygons)
+    # print(all_triangles)
+    #     closed_coords = coords.copy()
+    #     closed_coords.append(closed_coords[0])
+    #     all_triangles = drawTriangle([closed_coords])
 
     basis, basis_angles = genBasis()
 
@@ -512,10 +588,6 @@ if __name__ == "__main__":
 
     fillPolygon(all_splited_triangles)
 
-    plt.scatter(x=all_x, y=all_y, marker='o', c='r', edgecolor='b')
-    ''' аннотация точек'''
-    for i in range(len(all_x)):
-        plt.annotate(i, (all_x[i], all_y[i]))
     plt.grid()
     plt.show()
 # % reset_selective -f pyobject
