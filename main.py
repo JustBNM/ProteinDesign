@@ -371,7 +371,6 @@ def fillTriangle(triangle):
     angle_0 = angle_finder(triangle[1], triangle[0], triangle[2])
     angle_1 = angle_finder(triangle[2], triangle[1], triangle[0])
     angle_2 = angle_finder(triangle[0], triangle[2], triangle[1])
-
     angles = [angle_0, angle_1, angle_2]
 
     for i in range(len(angles)):
@@ -406,8 +405,7 @@ def fillTriangle(triangle):
         '''
         line1 = line(triangle[(index + 1) % 3], triangle[(index - 1) % 3])
         # Для нахождения 2 точки в line2 (конца второго вектора) мы применяем матрицу поворота
-        # к первому вектору
-
+        # к первому вектору:
         line2 = line(triangle[index],
                      tuple(vector_rotation(triangle[(index - 1) % 3], triangle[index], fill_angle)))
 
